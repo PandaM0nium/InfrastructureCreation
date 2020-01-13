@@ -1,9 +1,8 @@
-# Infrastructure as Code project
+## Infrastructure as Code project
 
+Area for codes use to spin up Cloud infrastructure.
 
 ![](header.png)
-
-
 
 ## Usage example
 
