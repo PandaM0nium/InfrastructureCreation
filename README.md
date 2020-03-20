@@ -1,4 +1,4 @@
-## Infrastructure as Code project
+## PowerShell scripts repository
 
 Area for codes use to spin up Cloud infrastructure.
 
