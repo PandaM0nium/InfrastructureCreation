@@ -3,15 +3,6 @@
 ##*=============================================
 #region VariableDeclaration
 
-## Variables: Toolkit Name
-[string]$appDeployToolkitName = 'PSAppDeployToolkit'
-[string]$appDeployMainScriptFriendlyName = 'App Deploy Toolkit Main'
-
-## Variables: Script Info
-[version]$appDeployMainScriptVersion = [version]'3.6.8'
-[version]$appDeployMainScriptMinimumConfigVersion = [version]'3.6.8'
-[string]$appDeployMainScriptDate = '02/05/2016'
-[hashtable]$appDeployMainScriptParameters = $PSBoundParameters
 
 ## Variables: Datetime and Culture
 [datetime]$currentDateTime = Get-Date
@@ -324,9 +315,6 @@ If (-not (Test-Path -LiteralPath $appDeployCustomTypesSourceCode -PathType 'Leaf
 [string]$dirFiles = Join-Path -Path $scriptParentPath -ChildPath 'Files'
 [string]$dirSupportFiles = Join-Path -Path $scriptParentPath -ChildPath 'SupportFiles'
 [string]$dirAppDeployTemp = Join-Path -Path $configToolkitTempPath -ChildPath $appDeployToolkitName
-
-## Set the deployment type to "Install" if it has not been specified
-If (-not $deploymentType) { [string]$deploymentType = 'Install' }
 
 ## Variables: Executables
 [string]$exeWusa = 'wusa.exe' # Installs Standalone Windows Updates
