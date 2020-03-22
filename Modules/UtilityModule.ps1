@@ -74,8 +74,7 @@ If ($IsMachinePartOfDomain) {
 		[string]$MachineDomainController = [DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain().FindDomainController().Name
 	}
 	Catch { }
-}
-Else {
+} Else {
 	[string]$envMachineWorkgroup = (Get-WmiObject -Class 'Win32_ComputerSystem' -ErrorAction 'SilentlyContinue').Domain | Where-Object { $_ } | ForEach-Object { $_.ToUpper() }
 }
 [string]$envMachineDNSDomain = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().DomainName | Where-Object { $_ } | ForEach-Object { $_.ToLower() }
@@ -156,22 +155,14 @@ If ($IsLocalSystemAccount -or $IsLocalServiceAccount -or $IsNetworkServiceAccoun
 If ($invokingScript) {
 	#  If this script was invoked by another script
 	[string]$scriptParentPath = Split-Path -Path $invokingScript -Parent
-}
-Else {
+} Else {
 	#  If this script was not invoked by another script, fall back to the directory one level above this script
 	[string]$scriptParentPath = (Get-Item -LiteralPath $scriptRoot).Parent.FullName
 }
 
-## Variables: App Deploy Script Dependency Files
-[string]$appDeployLogoIcon = Join-Path -Path $scriptRoot -ChildPath 'AppDeployToolkitLogo.ico'
-[string]$appDeployLogoBanner = Join-Path -Path $scriptRoot -ChildPath 'AppDeployToolkitBanner.png'
-[string]$appDeployConfigFile = Join-Path -Path $scriptRoot -ChildPath 'AppDeployToolkitConfig.xml'
-[string]$appDeployCustomTypesSourceCode = Join-Path -Path $scriptRoot -ChildPath 'AppDeployToolkitMain.cs'
-
 ## Variables: Script Directories
 [string]$dirFiles = Join-Path -Path $scriptParentPath -ChildPath 'Files'
 [string]$dirSupportFiles = Join-Path -Path $scriptParentPath -ChildPath 'SupportFiles'
-[string]$dirAppDeployTemp = Join-Path -Path $configToolkitTempPath -ChildPath $appDeployToolkitName
 
 ## Variables: Executables
 [string]$exeWusa = 'wusa.exe' # Installs Standalone Windows Updates
@@ -186,8 +177,7 @@ Else {
 [string[]]$regKeyApplications = 'HKLM:SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall','HKLM:SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 If ($is64Bit) {
 	[string]$regKeyLotusNotes = 'HKLM:SOFTWARE\Wow6432Node\Lotus\Notes'
-}
-Else {
+} Else {
 	[string]$regKeyLotusNotes = 'HKLM:SOFTWARE\Lotus\Notes'
 }
 [string]$regKeyAppExecution = 'HKLM:SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options'
@@ -209,63 +199,3 @@ If (Test-Path -LiteralPath 'variable:deferDays') { Remove-Variable -Name 'deferD
 
 #endregion
 
-
-##########################################################################################
-# Function Section
-
-#region Function Write-FunctionHeaderOrFooter
-Function Write-FunctionHeaderOrFooter {
-	<#
-	.SYNOPSIS
-		Write the function header or footer to the log upon first entering or exiting a function.
-	.DESCRIPTION
-		Write the "Function Start" message, the bound parameters the function was invoked with, or the "Function End" message when entering or exiting a function.
-		Messages are debug messages so will only be logged if LogDebugMessage option is enabled in XML config file.
-	.PARAMETER CmdletName
-		The name of the function this function is invoked from.
-	.PARAMETER CmdletBoundParameters
-		The bound parameters of the function this function is invoked from.
-	.PARAMETER Header
-		Write the function header.
-	.PARAMETER Footer
-		Write the function footer.
-	.EXAMPLE
-		Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
-	.EXAMPLE
-		Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -Footer
-	.NOTES
-		This is an internal script function and should typically not be called directly.
-	.LINK
-		http://psappdeploytoolkit.com
-	#>
-		[CmdletBinding()]
-		Param (
-			[Parameter(Mandatory=$true)]
-			[ValidateNotNullorEmpty()]
-			[string]$CmdletName,
-			[Parameter(Mandatory=$true,ParameterSetName='Header')]
-			[AllowEmptyCollection()]
-			[hashtable]$CmdletBoundParameters,
-			[Parameter(Mandatory=$true,ParameterSetName='Header')]
-			[switch]$Header,
-			[Parameter(Mandatory=$true,ParameterSetName='Footer')]
-			[switch]$Footer
-		)
-		
-		If ($Header) {
-			Write-Log -Message 'Function Start' -Source ${CmdletName} -DebugMessage
-			
-			## Get the parameters that the calling function was invoked with
-			[string]$CmdletBoundParameters = $CmdletBoundParameters | Format-Table -Property @{ Label = 'Parameter'; Expression = { "[-$($_.Key)]" } }, @{ Label = 'Value'; Expression = { $_.Value }; Alignment = 'Left' } -AutoSize -Wrap | Out-String
-			If ($CmdletBoundParameters) {
-				Write-Log -Message "Function invoked with bound parameter(s): `n$CmdletBoundParameters" -Source ${CmdletName} -DebugMessage
-			}
-			Else {
-				Write-Log -Message 'Function invoked without any bound parameters.' -Source ${CmdletName} -DebugMessage
-			}
-		}
-		ElseIf ($Footer) {
-			Write-Log -Message 'Function End' -Source ${CmdletName} -DebugMessage
-		}
-	}
-	#endregion
