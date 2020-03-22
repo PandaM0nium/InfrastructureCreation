@@ -3,7 +3,6 @@
 ##*=============================================
 #region VariableDeclaration
 
-
 ## Variables: Datetime and Culture
 [datetime]$currentDateTime = Get-Date
 [string]$currentTime = Get-Date -Date $currentDateTime -UFormat '%T'
@@ -168,148 +167,6 @@ Else {
 [string]$appDeployLogoBanner = Join-Path -Path $scriptRoot -ChildPath 'AppDeployToolkitBanner.png'
 [string]$appDeployConfigFile = Join-Path -Path $scriptRoot -ChildPath 'AppDeployToolkitConfig.xml'
 [string]$appDeployCustomTypesSourceCode = Join-Path -Path $scriptRoot -ChildPath 'AppDeployToolkitMain.cs'
-#  App Deploy Optional Extensions File
-[string]$appDeployToolkitDotSourceExtensions = 'AppDeployToolkitExtensions.ps1'
-#  Check that dependency files are present
-If (-not (Test-Path -LiteralPath $appDeployLogoIcon -PathType 'Leaf')) { Throw 'App Deploy logo icon file not found.' }
-If (-not (Test-Path -LiteralPath $appDeployLogoBanner -PathType 'Leaf')) { Throw 'App Deploy logo banner file not found.' }
-If (-not (Test-Path -LiteralPath $appDeployConfigFile -PathType 'Leaf')) { Throw 'App Deploy XML configuration file not found.' }
-If (-not (Test-Path -LiteralPath $appDeployCustomTypesSourceCode -PathType 'Leaf')) { Throw 'App Deploy custom types source code file not found.' }
-
-## Import variables from XML configuration file
-[Xml.XmlDocument]$xmlConfigFile = Get-Content -LiteralPath $AppDeployConfigFile
-[Xml.XmlElement]$xmlConfig = $xmlConfigFile.AppDeployToolkit_Config
-#  Get Config File Details
-[Xml.XmlElement]$configConfigDetails = $xmlConfig.Config_File
-[string]$configConfigVersion = [version]$configConfigDetails.Config_Version
-[string]$configConfigDate = $configConfigDetails.Config_Date
-#  Get Toolkit Options
-[Xml.XmlElement]$xmlToolkitOptions = $xmlConfig.Toolkit_Options
-[boolean]$configToolkitRequireAdmin = [boolean]::Parse($xmlToolkitOptions.Toolkit_RequireAdmin)
-[string]$configToolkitTempPath = $ExecutionContext.InvokeCommand.ExpandString($xmlToolkitOptions.Toolkit_TempPath)
-[string]$configToolkitRegPath = $xmlToolkitOptions.Toolkit_RegPath
-[string]$configToolkitLogDir = $ExecutionContext.InvokeCommand.ExpandString($xmlToolkitOptions.Toolkit_LogPath)
-[boolean]$configToolkitCompressLogs = [boolean]::Parse($xmlToolkitOptions.Toolkit_CompressLogs)
-[string]$configToolkitLogStyle = $xmlToolkitOptions.Toolkit_LogStyle
-[double]$configToolkitLogMaxSize = $xmlToolkitOptions.Toolkit_LogMaxSize
-[boolean]$configToolkitLogWriteToHost = [boolean]::Parse($xmlToolkitOptions.Toolkit_LogWriteToHost)
-[boolean]$configToolkitLogDebugMessage = [boolean]::Parse($xmlToolkitOptions.Toolkit_LogDebugMessage)
-#  Get MSI Options
-[Xml.XmlElement]$xmlConfigMSIOptions = $xmlConfig.MSI_Options
-[string]$configMSILoggingOptions = $xmlConfigMSIOptions.MSI_LoggingOptions
-[string]$configMSIInstallParams = $xmlConfigMSIOptions.MSI_InstallParams
-[string]$configMSISilentParams = $xmlConfigMSIOptions.MSI_SilentParams
-[string]$configMSIUninstallParams = $xmlConfigMSIOptions.MSI_UninstallParams
-[string]$configMSILogDir = $ExecutionContext.InvokeCommand.ExpandString($xmlConfigMSIOptions.MSI_LogPath)
-[int32]$configMSIMutexWaitTime = $xmlConfigMSIOptions.MSI_MutexWaitTime
-#  Get UI Options
-[Xml.XmlElement]$xmlConfigUIOptions = $xmlConfig.UI_Options
-[string]$configInstallationUILanguageOverride = $xmlConfigUIOptions.InstallationUI_LanguageOverride
-[boolean]$configShowBalloonNotifications = [boolean]::Parse($xmlConfigUIOptions.ShowBalloonNotifications)
-[int32]$configInstallationUITimeout = $xmlConfigUIOptions.InstallationUI_Timeout
-[int32]$configInstallationUIExitCode = $xmlConfigUIOptions.InstallationUI_ExitCode
-[int32]$configInstallationDeferExitCode = $xmlConfigUIOptions.InstallationDefer_ExitCode
-[int32]$configInstallationPersistInterval = $xmlConfigUIOptions.InstallationPrompt_PersistInterval
-[int32]$configInstallationRestartPersistInterval = $xmlConfigUIOptions.InstallationRestartPrompt_PersistInterval
-[int32]$configInstallationPromptToSave = $xmlConfigUIOptions.InstallationPromptToSave_Timeout
-#  Define ScriptBlock for Loading Message UI Language Options (default for English if no localization found)
-[scriptblock]$xmlLoadLocalizedUIMessages = {
-	#  If a user is logged on, then get primary UI language for logged on user (even if running in session 0)
-	If ($RunAsActiveUser) {
-		#  Read language defined by Group Policy
-		If (-not $HKULanguages) {
-			[string[]]$HKULanguages = Get-RegistryKey -Key 'HKLM:SOFTWARE\Policies\Microsoft\MUI\Settings' -Value 'PreferredUILanguages'
-		}
-		If (-not $HKULanguages) {
-			[string[]]$HKULanguages = Get-RegistryKey -Key 'HKCU\Software\Policies\Microsoft\Windows\Control Panel\Desktop' -Value 'PreferredUILanguages' -SID $RunAsActiveUser.SID
-		}
-		#  Read language for Win Vista & higher machines
-		If (-not $HKULanguages) {
-			[string[]]$HKULanguages = Get-RegistryKey -Key 'HKCU\Control Panel\Desktop' -Value 'PreferredUILanguages' -SID $RunAsActiveUser.SID
-		}
-		If (-not $HKULanguages) {
-			[string[]]$HKULanguages = Get-RegistryKey -Key 'HKCU\Control Panel\Desktop\MuiCached' -Value 'MachinePreferredUILanguages' -SID $RunAsActiveUser.SID
-		}
-		If (-not $HKULanguages) {
-			[string[]]$HKULanguages = Get-RegistryKey -Key 'HKCU\Control Panel\International' -Value 'LocaleName' -SID $RunAsActiveUser.SID
-		}
-		#  Read language for Win XP machines
-		If (-not $HKULanguages) {
-			[string]$HKULocale = Get-RegistryKey -Key 'HKCU\Control Panel\International' -Value 'Locale' -SID $RunAsActiveUser.SID
-			If ($HKULocale) {
-				[int32]$HKULocale = [Convert]::ToInt32('0x' + $HKULocale, 16)
-				[string[]]$HKULanguages = ([Globalization.CultureInfo]($HKULocale)).Name
-			}
-		}
-		If ($HKULanguages) {
-			[Globalization.CultureInfo]$PrimaryWindowsUILanguage = [Globalization.CultureInfo]($HKULanguages[0])
-			[string]$HKUPrimaryLanguageShort = $PrimaryWindowsUILanguage.TwoLetterISOLanguageName.ToUpper()
-			
-			#  If the detected language is Chinese, determine if it is simplified or traditional Chinese
-			If ($HKUPrimaryLanguageShort -eq 'ZH') {
-				If ($PrimaryWindowsUILanguage.EnglishName -match 'Simplified') {
-					[string]$HKUPrimaryLanguageShort = 'ZH-Hans'
-				}
-				If ($PrimaryWindowsUILanguage.EnglishName -match 'Traditional') {
-					[string]$HKUPrimaryLanguageShort = 'ZH-Hant'
-				}
-			}
-			
-			#  If the detected language is Portuguese, determine if it is Brazilian Portuguese
-			If ($HKUPrimaryLanguageShort -eq 'PT') {
-				If ($PrimaryWindowsUILanguage.ThreeLetterWindowsLanguageName -eq 'PTB') {
-					[string]$HKUPrimaryLanguageShort = 'PT-BR'
-				}
-			}
-		}
-	}
-	
-	If ($HKUPrimaryLanguageShort) {
-		#  Use the primary UI language of the logged in user
-		[string]$xmlUIMessageLanguage = "UI_Messages_$HKUPrimaryLanguageShort"
-	}
-	Else {
-		#  Default to UI language of the account executing current process (even if it is the SYSTEM account)
-		[string]$xmlUIMessageLanguage = "UI_Messages_$currentLanguage"
-	}
-	#  Default to English if the detected UI language is not available in the XMl config file
-	If (-not ($xmlConfig.$xmlUIMessageLanguage)) { [string]$xmlUIMessageLanguage = 'UI_Messages_EN' }
-	#  Override the detected language if the override option was specified in the XML config file
-	If ($configInstallationUILanguageOverride) { [string]$xmlUIMessageLanguage = "UI_Messages_$configInstallationUILanguageOverride" }
-	
-	[Xml.XmlElement]$xmlUIMessages = $xmlConfig.$xmlUIMessageLanguage
-	[string]$configDiskSpaceMessage = $xmlUIMessages.DiskSpace_Message
-	[string]$configBalloonTextStart = $xmlUIMessages.BalloonText_Start
-	[string]$configBalloonTextComplete = $xmlUIMessages.BalloonText_Complete
-	[string]$configBalloonTextRestartRequired = $xmlUIMessages.BalloonText_RestartRequired
-	[string]$configBalloonTextFastRetry = $xmlUIMessages.BalloonText_FastRetry
-	[string]$configBalloonTextError = $xmlUIMessages.BalloonText_Error
-	[string]$configProgressMessageInstall = $xmlUIMessages.Progress_MessageInstall
-	[string]$configProgressMessageUninstall = $xmlUIMessages.Progress_MessageUninstall
-	[string]$configClosePromptMessage = $xmlUIMessages.ClosePrompt_Message
-	[string]$configClosePromptButtonClose = $xmlUIMessages.ClosePrompt_ButtonClose
-	[string]$configClosePromptButtonDefer = $xmlUIMessages.ClosePrompt_ButtonDefer
-	[string]$configClosePromptButtonContinue = $xmlUIMessages.ClosePrompt_ButtonContinue
-	[string]$configClosePromptButtonContinueTooltip = $xmlUIMessages.ClosePrompt_ButtonContinueTooltip
-	[string]$configClosePromptCountdownMessage = $xmlUIMessages.ClosePrompt_CountdownMessage
-	[string]$configDeferPromptWelcomeMessage = $xmlUIMessages.DeferPrompt_WelcomeMessage
-	[string]$configDeferPromptExpiryMessage = $xmlUIMessages.DeferPrompt_ExpiryMessage
-	[string]$configDeferPromptWarningMessage = $xmlUIMessages.DeferPrompt_WarningMessage
-	[string]$configDeferPromptRemainingDeferrals = $xmlUIMessages.DeferPrompt_RemainingDeferrals
-	[string]$configDeferPromptDeadline = $xmlUIMessages.DeferPrompt_Deadline
-	[string]$configBlockExecutionMessage = $xmlUIMessages.BlockExecution_Message
-	[string]$configDeploymentTypeInstall = $xmlUIMessages.DeploymentType_Install
-	[string]$configDeploymentTypeUnInstall = $xmlUIMessages.DeploymentType_UnInstall
-	[string]$configRestartPromptTitle = $xmlUIMessages.RestartPrompt_Title
-	[string]$configRestartPromptMessage = $xmlUIMessages.RestartPrompt_Message
-	[string]$configRestartPromptMessageTime = $xmlUIMessages.RestartPrompt_MessageTime
-	[string]$configRestartPromptMessageRestart = $xmlUIMessages.RestartPrompt_MessageRestart
-	[string]$configRestartPromptTimeRemaining = $xmlUIMessages.RestartPrompt_TimeRemaining
-	[string]$configRestartPromptButtonRestartLater = $xmlUIMessages.RestartPrompt_ButtonRestartLater
-	[string]$configRestartPromptButtonRestartNow = $xmlUIMessages.RestartPrompt_ButtonRestartNow
-	[string]$configWelcomePromptCountdownMessage = $xmlUIMessages.WelcomePrompt_CountdownMessage
-	[string]$configWelcomePromptCustomMessage = $xmlUIMessages.WelcomePrompt_CustomMessage
-}
 
 ## Variables: Script Directories
 [string]$dirFiles = Join-Path -Path $scriptParentPath -ChildPath 'Files'
@@ -350,28 +207,65 @@ If (Test-Path -LiteralPath 'variable:deferHistory') { Remove-Variable -Name 'def
 If (Test-Path -LiteralPath 'variable:deferTimes') { Remove-Variable -Name 'deferTimes' }
 If (Test-Path -LiteralPath 'variable:deferDays') { Remove-Variable -Name 'deferDays' }
 
-## Variables: System DPI Scale Factor
-[scriptblock]$GetDisplayScaleFactor = {
-	#  If a user is logged on, then get display scale factor for logged on user (even if running in session 0)
-	[boolean]$UserDisplayScaleFactor = $false
-	If ($RunAsActiveUser) {
-		[int32]$dpiPixels = Get-RegistryKey -Key 'HKCU\Control Panel\Desktop\WindowMetrics' -Value 'AppliedDPI' -SID $RunAsActiveUser.SID
-		If (-not ([string]$dpiPixels)) {
-			[int32]$dpiPixels = Get-RegistryKey -Key 'HKCU\Control Panel\Desktop' -Value 'LogPixels' -SID $RunAsActiveUser.SID
-		}
-		[boolean]$UserDisplayScaleFactor = $true
-	}
-	If (-not ([string]$dpiPixels)) {
-		#  This registry setting only exists if system scale factor has been changed at least once
-		[int32]$dpiPixels = Get-RegistryKey -Key 'HKLM:SOFTWARE\Microsoft\Windows NT\CurrentVersion\FontDPI' -Value 'LogPixels'
-		[boolean]$UserDisplayScaleFactor = $false
-	}
-	Switch ($dpiPixels) {
-		96 { [int32]$dpiScale = 100 }
-		120 { [int32]$dpiScale = 125 }
-		144 { [int32]$dpiScale = 150 }
-		192 { [int32]$dpiScale = 200 }
-		Default { [int32]$dpiScale = 100 }
-	}
-}
 #endregion
+
+
+##########################################################################################
+# Function Section
+
+#region Function Write-FunctionHeaderOrFooter
+Function Write-FunctionHeaderOrFooter {
+	<#
+	.SYNOPSIS
+		Write the function header or footer to the log upon first entering or exiting a function.
+	.DESCRIPTION
+		Write the "Function Start" message, the bound parameters the function was invoked with, or the "Function End" message when entering or exiting a function.
+		Messages are debug messages so will only be logged if LogDebugMessage option is enabled in XML config file.
+	.PARAMETER CmdletName
+		The name of the function this function is invoked from.
+	.PARAMETER CmdletBoundParameters
+		The bound parameters of the function this function is invoked from.
+	.PARAMETER Header
+		Write the function header.
+	.PARAMETER Footer
+		Write the function footer.
+	.EXAMPLE
+		Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
+	.EXAMPLE
+		Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -Footer
+	.NOTES
+		This is an internal script function and should typically not be called directly.
+	.LINK
+		http://psappdeploytoolkit.com
+	#>
+		[CmdletBinding()]
+		Param (
+			[Parameter(Mandatory=$true)]
+			[ValidateNotNullorEmpty()]
+			[string]$CmdletName,
+			[Parameter(Mandatory=$true,ParameterSetName='Header')]
+			[AllowEmptyCollection()]
+			[hashtable]$CmdletBoundParameters,
+			[Parameter(Mandatory=$true,ParameterSetName='Header')]
+			[switch]$Header,
+			[Parameter(Mandatory=$true,ParameterSetName='Footer')]
+			[switch]$Footer
+		)
+		
+		If ($Header) {
+			Write-Log -Message 'Function Start' -Source ${CmdletName} -DebugMessage
+			
+			## Get the parameters that the calling function was invoked with
+			[string]$CmdletBoundParameters = $CmdletBoundParameters | Format-Table -Property @{ Label = 'Parameter'; Expression = { "[-$($_.Key)]" } }, @{ Label = 'Value'; Expression = { $_.Value }; Alignment = 'Left' } -AutoSize -Wrap | Out-String
+			If ($CmdletBoundParameters) {
+				Write-Log -Message "Function invoked with bound parameter(s): `n$CmdletBoundParameters" -Source ${CmdletName} -DebugMessage
+			}
+			Else {
+				Write-Log -Message 'Function invoked without any bound parameters.' -Source ${CmdletName} -DebugMessage
+			}
+		}
+		ElseIf ($Footer) {
+			Write-Log -Message 'Function End' -Source ${CmdletName} -DebugMessage
+		}
+	}
+	#endregion
